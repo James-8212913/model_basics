@@ -20,6 +20,8 @@ sals %>%
    experience_male = Experience*Male
  ) %>% tibble()
 
+ sals_1
+ 
  # create a lm predicting salaries against the other variables
  
  ### Build a model ====
@@ -27,6 +29,7 @@ sals %>%
  lm_mod <- linear_reg() %>% 
    set_engine("lm")
  
+ lm_mod
  ### fit the model ====
  
  lm_fit <- lm_mod %>% 
@@ -34,11 +37,12 @@ sals %>%
  
  lm_fit %>% summary()
  lm_fit$fit %>% glance()
- lm_fit$fit %>% summary() %>% tidy()
+ lm_fit$fit %>% summary() %>% tidy() 
 ### Create Plots for Checking the assumptions (residuals) ====
 
 # Add residual info to the DF 
 sals_2 <- lm_fit$fit %>% augment(sals_1)
+sals_2 
 # Plot residuals  
 sals_2 %>% ggplot(aes(.fitted)) +
    geom_point(aes(y = .resid), colour = "blue")
@@ -53,13 +57,14 @@ sals_2 %>% ggplot(aes(.fitted)) +
   geom_point(aes(y = .std.resid)) +
   geom_hline(yintercept = 2) +
   geom_hline(yintercept = -2)
+
 # Check the shape of the residuals against experience // this should be done for each variable if possible 
 sals_2 %>% ggplot(aes(Experience)) +
   geom_point(aes(y = .resid)) +
   geom_hline(aes(yintercept = 0))
 
 ### Create a model with a log^10 y variable ====
-# create a log10 salary varaible
+# create a log10 salary variable
 sals_3 <- sals_1 %>% mutate(
   log_sal = log10(Salary), 
   exp_2 = Experience^2
@@ -74,8 +79,8 @@ lm_fit_1 <- lm_mod %>%
 ### Check the model ====
 # overall model performance R2 etc
 lm_fit_1$fit %>% glance() %>% tidy()
-results_1 <- lm_fit_1$fit %>% summary() %>% tidy()
-
+results_1 <- lm_fit_1$fit %>% tidy()
+results_1
 ### interpret results ====
 # backwards convert log10 for interpretations and interpret results as percentage increases per unit of increase not inclusive of the intercept. 
 
@@ -89,7 +94,7 @@ results_1 %>% select(term, estimate) %>% pivot_wider(names_from = term, values_f
 
 #Inspect plots of the results 
 par(mfrow = c(2,2))
-lm_fit_1$fit %>% plot()
+lm_fit_1$fit%>% plot()
 
 lm_fit_1 
  # Percentage scales are a multiplicative relationship by using a log transformation it turns it into an additive relationship.  
