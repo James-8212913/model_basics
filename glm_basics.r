@@ -10,7 +10,6 @@
 library(tidymodels)
 library(tidyverse)
 library(openxlsx)
-library(purrrlyr)
 ## Background ====
 
 # On occasion linear regression isn't appropriate for modelling a problem. This is where Maximum Likelihood estimation is appropriate as a precursor to the use of a GLM.
@@ -41,15 +40,49 @@ library(purrrlyr)
 # Generate a set of random 'coin toss' data (1,0) 
 
 # input number of coin tosses 
-n <- 100
+n <- 60
 # input the chance of a head
-w <- .35
+w <- .30
 
 coin_toss <- rbinom(n, 1, w) %>% as_tibble_col(column_name = "heads")
 n <- nrow(coin_toss)
 y <- sum(coin_toss$heads)
-p_hat <- y/n
-y  
+
+# this will run 30 coin tosses 10 times
+rol_av <- tibble(p_hat = integer(), av = integer())
+ave_p <- tibble(liklie = integer(),log_liklie = integer(), P_estimate = integer(), sd_p = integer())
+for (i in 1:10){
+  #This function replicates a series of coin tosses as a set of binomial data before calculating the p-hat for each set of coin tosses in addition to a a rolling average for p-hat across each set of coin tosses. 
+  coin_toss <- rbinom(n, 1, w) %>% as_tibble_col(column_name = "heads")
+  n <- nrow(coin_toss)
+  y <- sum(coin_toss$heads)
+  p_hat = y/n
+  row = tibble(p_hat)
+  rol_av <- rol_av %>% 
+    add_row(row) %>% 
+    mutate(
+      av = cumsum(p_hat)/seq_along(p_hat)
+    )
+  log_likelihood <- tibble("P_estimate" = (seq(0.05,.95, by = .05)))
+  liklie <- dbinom(y,n,log_likelihood$P_estimate)
+  log_liklie <- liklie %>% log10()
+  log_likelihood <- log_likelihood %>% add_column(liklie, log_liklie)
+  log_likelihood <- log_likelihood %>% arrange(desc(liklie))
+  # get the most likely p for each trail
+  ave_p <- add_row(ave_p, log_likelihood[1,])
+  ave_p <- ave_p %>% 
+    mutate(
+      av_p = cumsum(ave_p$P_estimate)/ seq_along(ave_p$P_estimate),
+      sd_p = sd(ave_p$P_estimate)
+    )
+  rol_av <- rol_av %>% 
+    mutate(
+      P_est = ave_p$P_estimate,
+      P_est_av = ave_p$av_p
+    )
+}
+rol_av 
+ave_p
 #create a tibble to build the other estimates around
 log_likelihood <- tibble("P_estimate" = (seq(0.05,.95, by = .05)))
 
@@ -73,4 +106,8 @@ log_likelihood %>% ggplot(aes(P_estimate)) +
   geom_line(aes(y = log_liklie))
 
 #### Interpretation of the Results ==== 
+
+#GLM - MLE will give a different answer to OLS in occasions where there are either small data sets or there are a number of different features - the details are in the n vs the n-1 that is in the estimation of the variance methods. 
+
+# A rule of thumb is when the data is normally distributed then use OLS - MLE and ultimately GLM should be used for non-normally distributed data.  
 
