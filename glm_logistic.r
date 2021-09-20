@@ -26,7 +26,7 @@ df %>% ggplot(aes(x = gage, y = bwght), fill = bwght) +
   geom_point(aes(colour = bwght))
 
 ## Log Odds // Logit Function ====
-# The intent is to offer some background on log-odds to not how the logit function can be derived
+# The intent is to offer some background on log-odds to now how the logit function can be derived
 
 # Count the number of positives and the number of negatives
 df %>% group_by(bwght) %>% count()
@@ -114,5 +114,77 @@ df_preds %>% roc_curve(bwght, .pred_0) %>%
   geom_text(aes(x = .5,
                 y = .25,
                 label = "ROC_AUC = 0.908"), stat = "unique")
+
+## New Model with Health Data ====
+ 
+### Import Data ====
+
+df_health <- read.csv("health.csv") %>% as_tibble()
+df_health
+
+df_health <- df_health %>% 
+  filter(car != 9) %>% # remove response variables that don't contribute to the model - did not answers.. 
+  mutate(
+    female = if_else(gender == 2,1,0) %>% as_factor(), # binary outcome coding for logistic modelling
+    acc_car = if_else(car == 2,0,1) %>% as_factor(),
+    marstat = as_factor(marstat)# binary outcome coding for logistic modelling
+  )
+
+### Build a Model ====
+glm_log_hlth <- logistic_reg() %>% 
+  set_engine("glm") %>% 
+  set_mode("classification")
+
+### Recipe for Model ====
+
+glm_rec_hlth <- recipe(acc_car ~ female + age + marstat, data = df_health) %>% 
+  step_dummy(marstat) 
+  prep() %>% 
+  bake(df_health)
+
+glm_rec_hlth
+
+### Workflow for Health Model ====
+
+mod_wf_hlth <- workflow() %>% 
+  add_recipe(glm_rec_hlth) %>% 
+  add_model(glm_log_hlth)
+
+### Fit the Model ====
+
+glm_log_hlth_fit <- fit(mod_wf_hlth, data = df_health)
+
+### Assess the Model ====
+
+glm_log_hlth_fit %>% tidy()
+glm_log_hlth_fit %>% pluck("fit")
+glm_log_hlth_fit %>% anova()
+
+### Make Predictions on original Data ====
+# Note this data wasn't split into train and test sets which isn't best practice
+# this is something that would need to be remedied if the model was to be generalised
+glm_hlth_preds <- bind_cols(df_health, glm_log_hlth_fit %>% predict(df_health),
+                            df_health, glm_log_hlth_fit %>% predict(df_health,
+                                                                    type = "prob"))
+
+glm_hlth_preds
+
+### Assess the model ====
+
+conf_mat(glm_hlth_preds, truth = acc_car...6, estimate = .pred_class)
+accuracy(glm_hlth_preds, truth = acc_car...6, estimate = .pred_class)
+f_meas(glm_hlth_preds, truth = acc_car...6, estimate = .pred_class)
+
+### ROC ====
+
+glm_hlth_preds %>% roc_auc(acc_car...6, .pred_0) # ROC value of .771
+
+p1 <- glm_hlth_preds %>% roc_curve(acc_car...6, .pred_0)
+p1 %>% autoplot()
+
+## Future Work ====
+ 
+# group variables in the health data set based on marital status to determine
+# the best fit for the model as - consider the data pre-process in this instance.
 
 
